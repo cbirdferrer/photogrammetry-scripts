@@ -15,8 +15,8 @@ import numpy as np
 import os, sys
 import argparse
 import easygui
-import math
- 
+import math 
+
 #ask how the csvs are saved
 msg = 'Are the GUI output csvs in each individual animals folder or all in one folder?'
 title = 'Where is the GUI output saved'
