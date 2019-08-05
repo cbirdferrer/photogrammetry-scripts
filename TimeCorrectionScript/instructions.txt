@@ -1,0 +1,14 @@
+Hi! This tool will give you a .csv that gives the time correction factors for the matchup scripts.
+Heres what you need to do:
+1. Make a .csv called "GPStime_images" with a column called ImageName and another called GPStime
+	*I've left the .csv I used for the one ocean trip as an example*
+
+1a. The ImageName should be a column of all the images with pictures of the GPS
+	GPStime should be the GPS time from all those images
+
+2. Copy all the GPS images into the folder called 'images'
+
+3. Drag the script file ('TimeCorrectionCalculator.py') into command prompt and hit enter!
+
+4. A box will open asking you to select the folder that contains the images folder and the csv
+	once you select the folder it'll run
