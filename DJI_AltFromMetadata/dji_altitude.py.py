@@ -22,21 +22,20 @@ imgalts = []
 
 imageFiles = os.listdir(imageFold)
 for img in imageFiles:
-        if img.startswith("1"):
-                print(img)
-                imgnames += [img]
-                imgF = os.path.join(imageFold,img)
-                print(imgF)
-                image = '"' + imgF + '"'
-                output = os.system("exiftool.exe exiftool -T -filename -xmp:RelativeAltitude "+ image + " > dji.txt")
-                table = open("dji.txt","r")
-                row = table.readline()
-                r = row.split("\t")
-                print(r)
-                rr = r[1]
-                print(rr)
-                r1 = float(rr)
-                imgalts += [r1]
+        print(img)
+        imgnames += [img]
+        imgF = os.path.join(imageFold,img)
+        print(imgF)
+        image = '"' + imgF + '"'
+        output = os.system("exiftool.exe exiftool -T -filename -xmp:RelativeAltitude "+ image + " > dji.txt")
+        table = open("dji.txt","r")
+        row = table.readline()
+        r = row.split("\t")
+        print(r)
+        rr = r[1]
+        print(rr)
+        r1 = float(rr)
+        imgalts += [r1]
 print(imgalts)
 d = {'Image':imgnames, 'Meta_Alt':imgalts}
 df = pd.DataFrame(data = d)
