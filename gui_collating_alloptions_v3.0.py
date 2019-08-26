@@ -1,12 +1,13 @@
 #---------------------------------------------------------------
-#gui_collating_safteynet.py
+#gui_collating_alloptions_v3.0.py
 #this script collates measurements from individual csv outputs of
 #the morphometriX GUI
 #the csvs can be saved either all in one folder or within each individual
 #animals folder.
 #this version includes a safety net that recalculates the measurement using
 #accurate altitude and focal lengths that the user must provie in csvs.
-#created by: Clara Bird (clara.birdferrer#gmail.com), July 2019
+# this version uses PyQt5 instead of easygui (used in v2.0)
+#created by: Clara Bird (clara.birdferrer#gmail.com), August 2019
 #----------------------------------------------------------------
 
 #import modules
