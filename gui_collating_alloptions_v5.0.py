@@ -195,7 +195,7 @@ class App(QWidget):
                     #get the true values of focal length and altitude to use when recalculating
                     df_L = dfList.groupby('Image').first().reset_index()
                     alt_act = df_L[df_L.Image == image].loc[:,'Altitude'].values[0]
-                    foc_act = float(df_focal[df_focal.Image == image].loc[:,'Focal_Length'].values[0])
+                    foc_act = float(df_L[df_L.Image == image].loc[:,'Focal_Length'].values[0])
 
                     #go into the cvs to look for the values
                     dfGUI = pd.read_csv(f, sep = ",", header = idx[0])
@@ -298,6 +298,7 @@ class App(QWidget):
                 elif idchoice == 'no':
                     pass
 
+                print("done, close GUI window to end script")
             elif option == 'One Folder':
                 GUIfold = QFileDialog.getExistingDirectory(None, "folder containing GUI outputs")
                 saveFold = QFileDialog.getExistingDirectory(None,"folder where output should be saved")
@@ -362,8 +363,6 @@ class App(QWidget):
 
                 rawMM = set(rawM)
 
-                df_foc = pd.read_csv(focal_csv, sep = ',', index_col = [0])
-                df_focal = df_foc.groupby('Flight').first().reset_index()
 
                 for f in (f for f in files if f.endswith('.csv')):
                     print(f)
@@ -506,7 +505,7 @@ class App(QWidget):
                     df_allx.to_csv(outidcsv,sep = ',')
                 elif idchoice == 'no':
                     pass
-                print("done")
+                print("done, close GUI window to end script")
 
         elif safety == 'no':
             if option == 'Individual Folders':
@@ -682,7 +681,7 @@ class App(QWidget):
                 elif idchoice == 'no':
                     pass
 
-                print("done")
+                print("done, close GUI window to end script")
             elif option == 'One Folder':
                 GUIfold = QFileDialog.getExistingDirectory(None, "folder containing GUI outputs")
                 saveFold = QFileDialog.getExistingDirectory(None,"folder where output should be saved")
@@ -848,7 +847,7 @@ class App(QWidget):
                 elif idchoice == 'no':
                     pass
 
-                print("done")
+                print("done, close GUI window to end script")
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = App()
