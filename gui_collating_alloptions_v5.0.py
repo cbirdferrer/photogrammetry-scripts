@@ -94,11 +94,10 @@ class App(QWidget):
                 saveFold = QFileDialog.getExistingDirectory(None,"folder where output should be saved")
                 options = QFileDialog.Options()
                 options |= QFileDialog.DontUseNativeDialog
-                csv, _ = QFileDialog.getOpenFileName(self,"img list w/ altitudes", "","All Files (*);;csv files (*.csv)", options=options)
-                focal_csv,_ = QFileDialog.getOpenFileName(self,"list of focal lenghts per flight", "","All Files (*);;csv files (*.csv)", options=options)
+                safe_csv, _ = QFileDialog.getOpenFileName(self,"img list w/ altitudes and focal lengths", "","All Files (*);;csv files (*.csv)", options=options)
 
-                dfList = pd.read_csv(csv,sep = ",")
-                print(dfList)
+                dfList = pd.read_csv(safe_csv,sep = ",")
+                #print(dfList)
 
                 #make lists
                 measurements = []
@@ -166,10 +165,6 @@ class App(QWidget):
 
                 rawMM = set(rawM)
 
-                #import the focal length csv
-                df_foc = pd.read_csv(focal_csv, sep = ',', index_col = [0])
-                df_focal = df_foc.groupby('Flight').first().reset_index()
-                #print(df_focal.columns)
 
                 for f in csvs:
                     print(f)
@@ -185,8 +180,6 @@ class App(QWidget):
                     #df = df.set_index([0])
                     image = os.path.split(df[df[0] == 'Image Path'].loc[:,1].values[0])[1]
                     print(image)
-                    isp = "_" + image.split("_")[3]
-                    daf = image.replace(isp,"")
                     #print(image)
                     mDict['Image'] = image
                     #print(df)
@@ -200,14 +193,9 @@ class App(QWidget):
                     mDict['PixD'] = pixd
 
                     #get the true values of focal length and altitude to use when recalculating
-                    foc_act = float(df_focal[df_focal.Flight == daf].loc[:,'Focal_Length'].values[0])
                     df_L = dfList.groupby('Image').first().reset_index()
-                    # df_L = df_L.set_index('Image')
                     alt_act = df_L[df_L.Image == image].loc[:,'Altitude'].values[0]
-
-                    #print(foc_act)
-                    #print(alt_act)
-                    #print(pixd)
+                    foc_act = float(df_focal[df_focal.Image == image].loc[:,'Focal_Length'].values[0])
 
                     #go into the cvs to look for the values
                     dfGUI = pd.read_csv(f, sep = ",", header = idx[0])
@@ -315,10 +303,9 @@ class App(QWidget):
                 saveFold = QFileDialog.getExistingDirectory(None,"folder where output should be saved")
                 options = QFileDialog.Options()
                 options |= QFileDialog.DontUseNativeDialog
-                csv, _ = QFileDialog.getOpenFileName(self,"img list w/ altitudes", "","All Files (*);;csv files (*.csv)", options=options)
-                focal_csv,_ = QFileDialog.getOpenFileName(self,"list of focal lenghts per flight", "","All Files (*);;csv files (*.csv)", options=options)
+                safe_csv, _ = QFileDialog.getOpenFileName(self,"img list w/ altitudes and focal lengths", "","All Files (*);;csv files (*.csv)", options=options)
 
-                dfList = pd.read_csv(csv, sep = ",")
+                dfList = pd.read_csv(safe_csv, sep = ",")
                 #print(dfList)
 
                 files = os.listdir(GUIfold)
@@ -343,7 +330,7 @@ class App(QWidget):
 
                     l = df['Object'].tolist()
                     l = [x for x in l if pd.isna(x) == False] #eliminate all empty cells
-                    l = [x for x in l if x not in constants and x != 'Object']
+                    l = [x for x in l if x not in constants and x != 'Object'] #get rid of extra instances of Object
 
 
                     measurements = measurements + l #add the measurement names to the master list
@@ -389,8 +376,6 @@ class App(QWidget):
 
                     image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1]
                     print(image)
-                    isp = "_" + image.split("_")[3]
-                    daf = image.replace(isp,"")
                     mDict['Image'] = image
                     #print(df)
                     aID = (df[df[0] == 'Image ID'].loc[:,[1]].values[0])[0]
@@ -406,10 +391,11 @@ class App(QWidget):
                     mDict['PixD'] = pixd
 
                     #get the true values of focal length and altitude to use when recalculating
-                    foc_act = float(df_focal[df_focal.Flight == daf].loc[:,'Focal_Length'].values[0])
                     df_L = dfList.groupby('Image').first().reset_index()
                     # df_L = df_L.set_index('Image')
                     alt_act = df_L[df_L.Image == image].loc[:,'Altitude'].values[0]
+                    foc_act = float(df_L[df_L.Image == image].loc[:,'Focal_Length'].values[0])
+
 
                     #print(foc_act)
                     #print(alt_act)
@@ -603,8 +589,6 @@ class App(QWidget):
                     mDict['Animal_ID'] = aID
                     image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1]
                     print(image)
-                    isp = "_" + image.split("_")[3]
-                    daf = image.replace(isp,"")
                     mDict['Image'] = image
                     #go into the cvs to look for the values
 
@@ -726,8 +710,7 @@ class App(QWidget):
 
                     l = df['Object'].tolist()
                     l = [x for x in l if pd.isna(x) == False] #eliminate all empty cells
-                    l = [x for x in l if x not in constants]
-                    if 'Object' in l: l.remove('Object') #get rid of second instance of Object
+                    l = [x for x in l if x not in constants and x != 'Object']
 
                     measurements = measurements + l #add the measurement names to the master list
                     nonPercMeas = nonPercMeas + l #copy of the master list that does not include widths
@@ -740,7 +723,7 @@ class App(QWidget):
                     elif anydup(l) == False:
                         print(f)
                         for i in l: #loop through list of measurement types
-                            for w in (w for w in widths if w[0].isdigit() and w != 'Object'): #loop through the widths
+                            for w in (w for w in widths if w[0].isdigit()): #loop through the widths
                                 x = df.loc[i,w] #extract cell value of width of measurement type
                                 if pd.isna(x) == False: #if the cell isn't empty
                                     ww = i + "-" + w #combine the names
@@ -768,8 +751,7 @@ class App(QWidget):
                     df = pd.read_csv(fil,sep = ',', header = None, nrows = idx[0])
 
                     image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1]
-                    isp = "_" + image.split("_")[3]
-                    daf = image.replace(isp,"")
+                    print(image)
                     mDict['Image'] = image
                     #print(df)
                     aID = df[df[0] == 'Image ID'].loc[:,[1]].values[0]
@@ -794,7 +776,6 @@ class App(QWidget):
 
                     df_op = pd.DataFrame(data = mDict,index=[1]) #make dictionary into dataframe
                     df_all = pd.concat([df_all,df_op],sort = True)
-                print(df_all)
                 df_all = df_all.replace(np.nan,0)
                 df_all = df_all.groupby(['Animal_ID','Image']).sum().reset_index()
                 print(df_all)
