@@ -1,5 +1,5 @@
 #---------------------------------------------------------------
-#gui_collating_alloptions_v3.0.py
+#gui_collating_alloptions_v5.0.py
 #this script collates measurements from individual csv outputs of
 #the morphometriX GUI
 #the csvs can be saved either all in one folder or within each individual
