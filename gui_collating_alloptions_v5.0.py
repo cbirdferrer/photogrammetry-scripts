@@ -135,8 +135,7 @@ class App(QWidget):
 
                     l = df['Object'].tolist() #make a list of all measurement names in this column
                     l = [x for x in l if pd.isna(x) == False] #eliminate all empty cells
-                    l = [x for x in l if x not in constants]
-                    if 'Object' in l: l.remove('Object') #get rid of second Object
+                    l = [x for x in l if x not in constants and x != 'Object'] #get rid of second Object
 
                     measurements = measurements + l #add the measurement names to the master list
                     nonPercMeas = nonPercMeas + l #copy of the master list that does not include widths
@@ -152,7 +151,7 @@ class App(QWidget):
                             for w in (w for w in widths if w[0].isdigit()): #loop through the widths
                                 x = df.loc[i,w] #extract cell value of width of measurement type
                                 if pd.isna(x) == False: #if the cell isn't empty
-                                    ww = i + "_" + w #combine the names
+                                    ww = i + "-" + w #combine the names
                                     measurements += [ww] #add this combined name to the master list
 
                 #now we're going to set up a dictionary to fill in with all the measurements
@@ -227,9 +226,9 @@ class App(QWidget):
                             else: #if this key is not in the csv
                                 xx = np.nan
                             mDict[key] = xx #add the value to the respective key
-                        elif "%" in key and key.split("_")[0] in dfGUI.index: #if the key is a width
-                            row = key.split("_")[0] #split the name of the measurement
-                            col = key.split("_")[1] #to get the row and column indices
+                        elif "%" in key and key.split("-")[0] in dfGUI.index: #if the key is a width
+                            row = key.split("-")[0] #split the name of the measurement
+                            col = key.split("-")[1] #to get the row and column indices
                             y = dfGUI.loc[row,col] #to extract the measurement value
                             #recalculate using accurate focal length and altitude
                             pixc = (y/pixd)*(focl/alt) #back calculate the pixel count
@@ -254,7 +253,7 @@ class App(QWidget):
                     body_name = "Body_Vol_{0}%".format(interval)
                     volm = []
                     for x in range(lower,(upper + interval), interval):
-                        xx = "Total_Length_{0}.0%".format(str(x))
+                        xx = "Total_Length-{0}.0%".format(str(x))
                         volm += [xx]
                     print(volm)
                     vlist = []
@@ -561,8 +560,7 @@ class App(QWidget):
                     widths = df.columns.values.tolist()
 
                     l = df['Object'].tolist()
-                    l = [x for x in l if pd.isna(x) == False] #eliminate all empty cells
-                    if 'Object' in l: l.remove('Object') #get rid of second Object
+                    l = [x for x in l if pd.isna(x) == False and x != 'Object'] #eliminate all empty cells and extra occurences of Object
 
                     measurements = measurements + l #add the measurement names to the master list
                     nonPercMeas = nonPercMeas + l #copy of the master list that does not include widths
@@ -578,7 +576,7 @@ class App(QWidget):
                             for w in (w for w in widths if w[0].isdigit()): #loop through the widths
                                 x = df.loc[i,w] #extract cell value of width of measurement type
                                 if pd.isna(x) == False: #if the cell isn't empty
-                                    ww = i + "_" + w #combine the names
+                                    ww = i + "-" + w #combine the names
                                     measurements += [ww] #add this combined name to the master list
 
                 #now we're going to set up a dictionary to fill in with all the measurements
@@ -619,9 +617,9 @@ class App(QWidget):
                             else: #if this key is not in the csv
                                 x = np.nan
                             mDict[key] = x#add the value to the respective key
-                        elif "%" in key and key.split("_")[0] in dfGUI.index: #if the key is a width
-                            row = key.split("_")[0] #split the name of the measurement
-                            col = key.split("_")[1] #to get the row and column indices
+                        elif "%" in key and key.split("-")[0] in dfGUI.index: #if the key is a width
+                            row = key.split("-")[0] #split the name of the measurement
+                            col = key.split("-")[1] #to get the row and column indices
                             y = dfGUI.loc[row,col] #to extract the measurement value
                             mDict[key] = y
                         elif key not in dfGUI.index and key not in names:
@@ -643,7 +641,7 @@ class App(QWidget):
                     body_name = "Body_Vol_{0}%".format(interval)
                     volm = []
                     for x in range(lower,(upper + interval), interval):
-                        xx = "Total_Length_{0}.0%".format(str(x))
+                        xx = "Total_Length-{0}.0%".format(str(x))
                         volm += [xx]
                     print(volm)
                     vlist = []
@@ -745,7 +743,7 @@ class App(QWidget):
                             for w in (w for w in widths if w[0].isdigit() and w != 'Object'): #loop through the widths
                                 x = df.loc[i,w] #extract cell value of width of measurement type
                                 if pd.isna(x) == False: #if the cell isn't empty
-                                    ww = i + "_" + w #combine the names
+                                    ww = i + "-" + w #combine the names
                                     measurements += [ww] #add this combined name to the master list
 
                 #now we're going to set up a dictionary to fill in with all the measurements
@@ -786,9 +784,9 @@ class App(QWidget):
                             else: #if this key is not in the csv
                                 x = np.nan
                             mDict[key] = x #add the value to the respective key
-                        elif "%" in key and key.split("_")[0] in dfGUI.index: #if the key is a width
-                            row = key.split("_")[0] #split the name of the measurement
-                            col = key.split("_")[1] #to get the row and column indices
+                        elif "%" in key and key.split("-")[0] in dfGUI.index: #if the key is a width
+                            row = key.split("-")[0] #split the name of the measurement
+                            col = key.split("-")[1] #to get the row and column indices
                             y = dfGUI.loc[row,col] #to extract the measurement value
                             mDict[key] = y
                         elif key not in dfGUI.index and key not in names:
@@ -809,7 +807,7 @@ class App(QWidget):
                     body_name = "Body_Vol_{0}%".format(interval)
                     volm = []
                     for x in range(lower,(upper + interval), interval):
-                        xx = "Total_Length_{0}.0%".format(str(x))
+                        xx = "Total_Length-{0}.0%".format(str(x))
                         volm += [xx]
 
                     vlist = []
