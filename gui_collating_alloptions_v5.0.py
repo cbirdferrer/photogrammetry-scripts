@@ -241,7 +241,8 @@ class App(QWidget):
                     body_name = "Body_Vol_{0}%".format(interval)
                     volm = []
                     for x in range(lower,(upper + interval), interval):
-                        xx = "Total_Length-{0}.0%".format(str(x))
+                        wname = ww.split("-")[0]
+                        xx = "{0}-{1}.0%".format(wname,str(x))
                         volm += [xx]
                     print(volm)
                     vlist = []
@@ -447,7 +448,8 @@ class App(QWidget):
                     body_name = "Body_Vol_{0}%".format(interval)
                     volm = []
                     for x in range(lower,(upper + interval), interval):
-                        xx = "Total_Length-{0}.0%".format(str(x))
+                        wname = ww.split("-")[0]
+                        xx = "{0}-{1}.0%".format(wname,str(x))
                         volm += [xx]
 
                     vlist = []
@@ -624,7 +626,8 @@ class App(QWidget):
                     body_name = "Body_Vol_{0}%".format(interval)
                     volm = []
                     for x in range(lower,(upper + interval), interval):
-                        xx = "Total_Length-{0}.0%".format(str(x))
+                        wname = ww.split("-")[0]
+                        xx = "{0}-{1}.0%".format(wname,str(x))
                         volm += [xx]
                     print(volm)
                     vlist = []
@@ -787,7 +790,8 @@ class App(QWidget):
                     body_name = "Body_Vol_{0}%".format(interval)
                     volm = []
                     for x in range(lower,(upper + interval), interval):
-                        xx = "Total_Length-{0}.0%".format(str(x))
+                        wname = ww.split("-")[0]
+                        xx = "{0}-{1}.0%".format(wname,str(x))
                         volm += [xx]
 
                     vlist = []
