@@ -54,6 +54,10 @@ class App(QWidget):
             print(volchoice)
 
         if volchoice == 'yes':
+            n, okPressed = QInputDialog.getText(self, "What did you name the total length measurement?","Total Length Name:", QLineEdit.Normal, "")
+            if okPressed and n != '':
+                tl_name= str(n)
+                print(tl_name)
             l, okPressed = QInputDialog.getText(self, "Lower Bound","Lower Bound:", QLineEdit.Normal, "")
             if okPressed and l != '':
                 lower= int(l)
@@ -125,21 +129,36 @@ class App(QWidget):
 
                 #here we loop through all csvs to extract all the possible measurement names
                 for f in csvs:
-                    temp = pd.read_csv(f, sep = '^', header = None, prefix = 'X')
-                    df0 = temp.X0.str.split(',',expand = True)
-                    idx = df0.loc[df0[0]=='Object'].index #find the row number of 'Object'
-                    df = pd.read_csv(f,sep= ',', header = idx[0]) #use row num to skip the right number of rows
-                    #print(df)
-                    widths = df.columns.values.tolist()
+                    temp=pd.read_csv(f,sep='^',header=None,prefix='X') #read in csv as one column
+                    df0=temp.X0.str.split(',',expand=True) #split rows into columns by delimeter
+                    df0 = df0.fillna('') #replace nans by blank space
+                    idx = df0.loc[df0[0] == 'Object'].index #find index (row) values of 'Object'
+                    df = df0.iloc[idx[0]:].reset_index(drop=True)  #take subset of df starting at first row containing Object
+                    head = df.iloc[0] #make list out of names in first row
+                    df = df[1:] #take the data less the header row
+                    df.columns = head #set the header row as the df header
+                    #display(df)
 
-                    l = df['Object'].tolist() #make a list of all measurement names in this column
+                    wlist = df.iloc[0] #make list of all the width types
+                    widths = []
+                    for ww in wlist: #loop through widths row to make sure only widths are in list
+                        if "Width" in str(ww):
+                            widths += [str(ww)]
+
+                    l = df['Object'].tolist() #make list of Object columns aka. names of measurements made
                     l = [x for x in l if pd.isna(x) == False] #eliminate all empty cells
-                    l = [x for x in l if x not in constants and x != 'Object'] #get rid of second Object
+                    l = [x for x in l if x not in constants and x != 'Object'] #elimate all other instances of Object
+                    l = [x for x in l if x] #make sure no blank elements in list
 
                     measurements = measurements + l #add the measurement names to the master list
                     nonPercMeas = nonPercMeas + l #copy of the master list that does not include widths
 
-                    df = df.set_index('Object')
+
+                    new_header = df.columns[0:2].values.tolist() + df.iloc[0,2:].values.tolist() #merge header with width names
+                    df = df[1:] #cut header row off
+                    df.columns = new_header #make the updated list the new header
+
+                    df = df.set_index('Object') #set Object column as the index
 
                     if anydup(l) == True: #check for any duplicate measurement names, if exists, exit code, print error msg
                         print("please check file {0} for duplicate Objects and remove duplicates".format(f))
@@ -165,15 +184,13 @@ class App(QWidget):
 
                 rawMM = set(rawM)
 
-
                 for f in csvs:
                     print(f)
                     #pull the initial values i.e image, ID, alt, focal length
-                    temp = pd.read_csv(f, sep = '^',header = None,prefix = 'X')
-                    df0 = temp.X0.str.split(',',expand = True)
-                    idx = df0.loc[df0[0]=='Object'].index #find the row number of 'Object'
-
-                    df = pd.read_csv(f,sep = ",", header = None, nrows = idx[0])
+                    temp=pd.read_csv(f,sep='^',header=None,prefix='X') #import as one column
+                    df0=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    idx = df0.loc[df0[0]=='Object'].index #set object column to index
+                    df = pd.read_csv(f,sep = ',', header = None, nrows = idx[0]) #subset df to be only top info section
 
                     aID = os.path.split(os.path.split(f)[0])[1]
                     mDict['Animal_ID'] = aID
@@ -194,11 +211,14 @@ class App(QWidget):
 
                     #get the true values of focal length and altitude to use when recalculating
                     df_L = dfList.groupby('Image').first().reset_index()
-                    alt_act = df_L[df_L.Image == image].loc[:,'Altitude'].values[0]
+                    alt_act = float(df_L[df_L.Image == image].loc[:,'Altitude'].values[0])
                     foc_act = float(df_L[df_L.Image == image].loc[:,'Focal_Length'].values[0])
 
-                    #go into the cvs to look for the values
-                    dfGUI = pd.read_csv(f, sep = ",", header = idx[0])
+                    #go into the cvs to look for the measurement values
+                    dfGUI = df0.iloc[idx[0]:] #now subset the df so we're just looking at the measurements
+                    head = dfGUI.iloc[0]
+                    dfGUI = dfGUI[2:] #take the data less the header row
+                    dfGUI.columns = new_header
                     dfGUI = dfGUI.set_index('Object')
 
                     for key in keys: #loop through the keys aka future column headers
@@ -217,7 +237,7 @@ class App(QWidget):
                         elif "%" in key and key.split("-")[0] in dfGUI.index: #if the key is a width
                             row = key.split("-")[0] #split the name of the measurement
                             col = key.split("-")[1] #to get the row and column indices
-                            y = dfGUI.loc[row,col] #to extract the measurement value
+                            y = float(dfGUI.loc[row,col]) #to extract the measurement value
                             #recalculate using accurate focal length and altitude
                             pixc = (y/pixd)*(focl/alt) #back calculate the pixel count
                             yy = ((alt_act/foc_act)*pixd)*pixc #recalculate using the accurate focal length and altitude
@@ -230,36 +250,37 @@ class App(QWidget):
                     #df_all = pd.merge(df_all,df_op,on=['Image'])
                     df_all = pd.concat([df_all,df_op],sort = True)
 
-                df_all = df_all.drop(columns = ['Altitude','Focal Length','PixD']).replace(np.nan,0)
-                df_all = df_all.groupby(['Animal_ID','Image']).sum().reset_index()
-                print(df_all)
+                df_allx = df_all.drop(columns = ['Altitude','Focal Length','PixD']).replace(np.nan,0)
+                df_all_cols = df_allx.columns.tolist() #make list of column names
+                gby = ['Animal_ID','Image']
+                togroup = [x for x in df_all_cols if x not in gby] #setting up list of columns to be grouped
+                #no we group by ID and image just incase multiple images were measured for the same animal
+                #this would combine those measurements
+                df_all = df_allx.groupby(['Animal_ID','Image'])[togroup].apply(lambda x: x.astype(float).sum()).reset_index()
+
                 #calculate body volume
                 df_all.columns = df_all.columns.str.replace(".00%", ".0%")
-                #10% and 5%
-                #10% first
                 if volchoice == 'yes':
                     body_name = "Body_Vol_{0}%".format(interval)
                     volm = []
                     for x in range(lower,(upper + interval), interval):
                         wname = ww.split("-")[0]
-                        xx = "{0}-{1}.0%".format(wname,str(x))
+                        xx = "{0}-{1}.0%".format(tl_name,str(x))
                         volm += [xx]
                     print(volm)
                     vlist = []
                     for i in volm:
-                        #print(i)
                         for ii in df_all.columns:
-                            #print(ii)
                             if i in ii:
                                 vlist += [ii]
-                    #print(vlist)
+
                     ids = []
                     vs = []
                     imgs = []
                     for i,j in enumerate(vlist[:-1]):
                         jj = vlist[i+1]
                         #print(df_all[j])
-                        for rr, RR, hh,anid,img in zip(df_all[j],df_all[jj], df_all['Total_Length'],df_all['Animal_ID'],df_all['Image']):
+                        for rr, RR, hh,anid,img in zip(df_all[j],df_all[jj], df_all[tl_name],df_all['Animal_ID'],df_all['Image']):
                             ph = float(interval)/float(100)
                             h = float(hh)*ph
                             #print(r)
@@ -273,8 +294,11 @@ class App(QWidget):
 
                     d = {'Animal_ID':ids, body_name:vs, 'Image':imgs}
                     df = pd.DataFrame(data = d)
-                    #print(df)
-                    df1 = df.groupby(['Animal_ID','Image']).sum().reset_index()
+
+                    cls = df.columns.tolist()
+                    grBy = ['Animal_ID','Image']
+                    groups = [x for x in cls if x not in grBy]
+                    df1 = df.groupby(['Animal_ID','Image'])[groups].apply(lambda x: x.astype(float).sum()).reset_index()
 
                     df_all1 = pd.merge(df_all,df1,on = ['Animal_ID','Image'])
                 elif volchoice == 'no':
@@ -322,23 +346,37 @@ class App(QWidget):
                     return False
 
                 for f in (f for f in files if f.endswith('.csv')):
-                    ff = os.path.join(GUIfold,f)
-                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X')
-                    df0=temp.X0.str.split(',',expand=True)
-                    idx = df0.loc[df0[0] == 'Object'].index
-                    df = pd.read_csv(ff, sep = ',', header = idx[0])
+                    ff = os.path.join(GUIfold,f) #join csv name to folder file path
+                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X') #read in csv as one column
+                    df0=temp.X0.str.split(',',expand=True) #split rows into columns by delimeter
+                    df0 = df0.fillna('') #replace nans by blank space
+                    idx = df0.loc[df0[0] == 'Object'].index #find index (row) values of 'Object'
+                    df = df0.iloc[idx[0]:].reset_index(drop=True)  #take subset of df starting at first row containing Object
+                    head = df.iloc[0] #make list out of names in first row
+                    df = df[1:] #take the data less the header row
+                    df.columns = head #set the header row as the df header
+                    #display(df)
 
-                    widths = df.columns.values.tolist()
+                    wlist = df.iloc[0] #make list of all the width types
+                    widths = []
+                    for ww in wlist: #loop through widths row to make sure only widths are in list
+                        if "Width" in str(ww):
+                            widths += [str(ww)]
 
-                    l = df['Object'].tolist()
+                    l = df['Object'].tolist() #make list of Object columns aka. names of measurements made
                     l = [x for x in l if pd.isna(x) == False] #eliminate all empty cells
-                    l = [x for x in l if x not in constants and x != 'Object'] #get rid of extra instances of Object
-
+                    l = [x for x in l if x not in constants and x != 'Object'] #elimate all other instances of Object
+                    l = [x for x in l if x] #make sure no blank elements in list
 
                     measurements = measurements + l #add the measurement names to the master list
                     nonPercMeas = nonPercMeas + l #copy of the master list that does not include widths
 
-                    df = df.set_index('Object')
+
+                    new_header = df.columns[0:2].values.tolist() + df.iloc[0,2:].values.tolist() #merge header with width names
+                    df = df[1:] #cut header row off
+                    df.columns = new_header #make the updated list the new header
+
+                    df = df.set_index('Object') #set Object column as the index
 
                     if anydup(l) == True: #check for any duplicate measurement names, if exists, exit code, print error msg
                         print("please check file {0} for duplicate Objects and remove duplicates".format(f))
@@ -351,6 +389,7 @@ class App(QWidget):
                                 if pd.isna(x) == False: #if the cell isn't empty
                                     ww = i + "-" + w #combine the names
                                     measurements += [ww] #add this combined name to the master list
+
 
                 #now we're going to set up a dictionary to fill in with all the measurements
                 #that we will eventually turn into a dataframe where the keys are the columns
@@ -369,10 +408,10 @@ class App(QWidget):
                     print(f)
                     fil = os.path.join(GUIfold,f)
                     #pull the initial values i.e image, ID, alt, focal length
-                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X')
-                    df0=temp.X0.str.split(',',expand=True)
-                    idx = df0.loc[df0[0]=='Object'].index
-                    df = pd.read_csv(fil,sep = ',', header = None, nrows = idx[0])
+                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X') #import as one column
+                    df0=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    idx = df0.loc[df0[0]=='Object'].index #set object column to index
+                    df = pd.read_csv(fil,sep = ',', header = None, nrows = idx[0]) #subset df to be only top info section
 
                     image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1]
                     print(image)
@@ -396,60 +435,56 @@ class App(QWidget):
                     alt_act = df_L[df_L.Image == image].loc[:,'Altitude'].values[0]
                     foc_act = float(df_L[df_L.Image == image].loc[:,'Focal_Length'].values[0])
 
-
-                    #print(foc_act)
-                    #print(alt_act)
-                    #print(pixd)
-
                     #go into the cvs to look for the values
 
-                    dfGUI = pd.read_csv(fil, sep = ',', header = idx[0])
+                    dfGUI = df0.iloc[idx[0]:] #now subset the df so we're just looking at the measurements
+                    head = dfGUI.iloc[0]
+                    dfGUI = dfGUI[2:] #take the data less the header row
+                    dfGUI.columns = new_header
                     dfGUI = dfGUI.set_index('Object')
 
                     for key in keys: #loop through the keys aka future column headers
                         if key in nonPercMeas: #if that key is in the list of measurement types (not widths)
                             if key in dfGUI.index: #if that key (measurement) is in this csv
                                 x = float(dfGUI.loc[key,'Length (m)']) #extract the measurement value using location
-                                #print(key,x)
                                 # now is the time to do the back calculations
                                 pixc = (x/pixd)*(focl/alt) #back calculate the pixel count
-                                #print(pixc)
                                 xx = ((alt_act/foc_act)*pixd)*pixc #recalculate using the accurate focal length and altitude
-                                #print(xx)
                                 #just the thing for the time we had to divide by 2 for a few images
-                                #print(div)
                             else: #if this key is not in the csv
                                 xx = np.nan
                             mDict[key] = xx #add the value to the respective key
                         elif "%" in key and key.split("-")[0] in dfGUI.index: #if the key is a width
-                            print(key)
                             row = key.split("-")[0] #split the name of the measurement
                             col = key.split("-")[1] #to get the row and column indices
-                            y = dfGUI.loc[row,col] #to extract the measurement value
-                            print(y)
+                            y = float(dfGUI.loc[row,col]) #to extract the measurement value
                             #recalculate using accurate focal length and altitude
                             pixc = (y/pixd)*(focl/alt) #back calculate the pixel count
                             yy = ((alt_act/foc_act)*pixd)*pixc #recalculate using the accurate focal length and altitude
                             mDict[key] = yy
                         elif key not in dfGUI.index and key not in names:
                             mDict[key] = np.nan
+
                     df_op = pd.DataFrame(data = mDict,index=[1]) #make dictionary into dataframe
-                    #df_all = pd.merge(df_all,df_op,on=['Image'])
                     df_all = pd.concat([df_all,df_op],sort = True)
-                df_all = df_all.drop(columns = ['Altitude','Focal Length','PixD']).replace(np.nan,0)
-                df_all = df_all.groupby(['Animal_ID','Image']).sum().reset_index()
+
+                df_allx = df_all.drop(columns = ['Altitude','Focal Length','PixD']).replace(np.nan,0)
+                df_all_cols = df_allx.columns.tolist() #make list of column names
+                gby = ['Animal_ID','Image']
+                togroup = [x for x in df_all_cols if x not in gby] #setting up list of columns to be grouped
+                #no we group by ID and image just incase multiple images were measured for the same animal
+                #this would combine those measurements
+                df_all = df_allx.groupby(['Animal_ID','Image'])[togroup].apply(lambda x: x.astype(float).sum()).reset_index()
+
                 #calculate body volume
                 df_all.columns = df_all.columns.str.replace(".00%", ".0%")
-                print(df_all)
-                #10% and 5%
-                #10% first
 
                 if volchoice == 'yes':
                     body_name = "Body_Vol_{0}%".format(interval)
                     volm = []
                     for x in range(lower,(upper + interval), interval):
                         wname = ww.split("-")[0]
-                        xx = "{0}-{1}.0%".format(wname,str(x))
+                        xx = "{0}-{1}.0%".format(tl_name,str(x))
                         volm += [xx]
 
                     vlist = []
@@ -459,14 +494,14 @@ class App(QWidget):
                             #print(ii)
                             if i in ii:
                                 vlist += [ii]
-                    #print(vlist)
+
                     ids = []
                     vs = []
                     imgs = []
                     for i,j in enumerate(vlist[:-1]):
                         jj = vlist[i+1]
                         #print(df_all[j])
-                        for rr, RR, hh,anid,img in zip(df_all[j],df_all[jj], df_all['Total_Length'],df_all['Animal_ID'],df_all['Image']):
+                        for rr, RR, hh,anid,img in zip(df_all[j],df_all[jj], df_all[tl_name],df_all['Animal_ID'],df_all['Image']):
                             ph = float(interval)/float(100)
                             h = float(hh)*ph
                             #print(r)
@@ -480,10 +515,13 @@ class App(QWidget):
 
                     d = {'Animal_ID':ids, body_name:vs, 'Image':imgs}
                     df = pd.DataFrame(data = d)
-                    #print(df)
-                    df1 = df.groupby(['Animal_ID','Image']).sum().reset_index()
 
+                    cls = df.columns.tolist()
+                    grBy = ['Animal_ID','Image']
+                    groups = [x for x in cls if x not in grBy]
+                    df1 = df.groupby(['Animal_ID','Image'])[groups].apply(lambda x: x.astype(float).sum()).reset_index()
                     df_all1 = pd.merge(df_all,df1,on = ['Animal_ID','Image'])
+
                 elif volchoice == 'no':
                     df_all1 = df_all
                 print(df_all1)
@@ -539,20 +577,36 @@ class App(QWidget):
 
                 #here we loop through all csvs to extract all the possible measurement names
                 for f in csvs:
-                    temp = pd.read_csv(f, sep = '^', header = None, prefix = 'X')
-                    df0 = temp.X0.str.split(',',expand = True)
-                    idx = df0.loc[df0[0]=='Object'].index #find the row number of 'Object'
-                    df = pd.read_csv(f,sep= ',', header = idx[0]) #use row num to skip the right number of rows
-                    #print(df)
-                    widths = df.columns.values.tolist()
+                    temp=pd.read_csv(f,sep='^',header=None,prefix='X') #read in csv as one column
+                    df0=temp.X0.str.split(',',expand=True) #split rows into columns by delimeter
+                    df0 = df0.fillna('') #replace nans by blank space
+                    idx = df0.loc[df0[0] == 'Object'].index #find index (row) values of 'Object'
+                    df = df0.iloc[idx[0]:].reset_index(drop=True)  #take subset of df starting at first row containing Object
+                    head = df.iloc[0] #make list out of names in first row
+                    df = df[1:] #take the data less the header row
+                    df.columns = head #set the header row as the df header
+                    #display(df)
 
-                    l = df['Object'].tolist()
-                    l = [x for x in l if pd.isna(x) == False and x != 'Object'] #eliminate all empty cells and extra occurences of Object
+                    wlist = df.iloc[0] #make list of all the width types
+                    widths = []
+                    for ww in wlist: #loop through widths row to make sure only widths are in list
+                        if "Width" in str(ww):
+                            widths += [str(ww)]
+
+                    l = df['Object'].tolist() #make list of Object columns aka. names of measurements made
+                    l = [x for x in l if pd.isna(x) == False] #eliminate all empty cells
+                    l = [x for x in l if x not in constants and x != 'Object'] #elimate all other instances of Object
+                    l = [x for x in l if x] #make sure no blank elements in list
 
                     measurements = measurements + l #add the measurement names to the master list
                     nonPercMeas = nonPercMeas + l #copy of the master list that does not include widths
 
-                    df = df.set_index('Object')
+
+                    new_header = df.columns[0:2].values.tolist() + df.iloc[0,2:].values.tolist() #merge header with width names
+                    df = df[1:] #cut header row off
+                    df.columns = new_header #make the updated list the new header
+
+                    df = df.set_index('Object') #set Object column as the index
 
                     if anydup(l) == True: #check for any duplicate measurement names, if exists, exit code, print error msg
                         print("please check file {0} for duplicate Objects and remove duplicates".format(f))
@@ -568,40 +622,44 @@ class App(QWidget):
 
                 #now we're going to set up a dictionary to fill in with all the measurements
                 #that we will eventually turn into a dataframe where the keys are the columns
-                rawM = measurements
-                measurements += ['Image','Animal_ID']
-                names = ['Image','Animal_ID']
-                mDict = dict.fromkeys(measurements)
-                keys = list(mDict.keys())
+                rawM = measurements #making a copy of the measurement list
+                measurements += ['Image','Animal_ID'] #add key elements to measurement list (all for dict)
+                names = ['Image','Animal_ID'] #make list of the non measurement elements that will go in final table
+                mDict = dict.fromkeys(measurements) #make empty dictionary with measurement names as keys
+                keys = list(mDict.keys()) #make list of keys from the dictionary we just made
 
-                df_all = pd.DataFrame(columns = keys)
+                df_all = pd.DataFrame(columns = keys) #make empty dataframe with each key as a column hedaer
 
-                rawMM = set(rawM)
+                rawMM = set(rawM) #make set out of rawM measurement list
 
-                for f in csvs:
+                for f in csvs: #loop through the csvs again
                     print(f)
                     #pull the initial values i.e image, ID, alt, focal length
-                    temp = pd.read_csv(f, sep = '^',header = None,prefix = 'X')
-                    df0 = temp.X0.str.split(',',expand = True)
-                    idx = df0.loc[df0[0]=='Object'].index #find the row number of 'Object'
-                    df = pd.read_csv(f,sep = ",", header = None, nrows = idx[0])
+                    temp=pd.read_csv(f,sep='^',header=None,prefix='X') #import as one column
+                    df0=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    idx = df0.loc[df0[0]=='Object'].index #set object column to index
+                    df = pd.read_csv(f,sep = ',', header = None, nrows = idx[0]) #subset df to be only top info section
 
-                    aID = os.path.split(os.path.split(f)[0])[1]
-                    mDict['Animal_ID'] = aID
-                    image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1]
+                    image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1] #pull image name
                     print(image)
-                    mDict['Image'] = image
-                    #go into the cvs to look for the values
+                    mDict['Image'] = image #add image name to dictionary
+                    aID = os.path.split(os.path.split(f)[0])[1] #pull animal id
+                    mDict['Animal_ID'] = aID[0] #fill dictionary
 
-                    dfGUI = pd.read_csv(f, sep = ",", header = idx[0])
+                    #go into the cvs to look for the measurement values
+                    dfGUI = df0.iloc[idx[0]:] #now subset the df so we're just looking at the measurements
+                    head = dfGUI.iloc[0]
+                    dfGUI = dfGUI[2:] #take the data less the header row
+                    dfGUI.columns = new_header
                     dfGUI = dfGUI.set_index('Object')
+
                     for key in keys: #loop through the keys aka future column headers
                         if key in nonPercMeas: #if that key is in the list of measurement types (not widths)
-                            if key in dfGUI.index: #if that key (measurement) is in this csv
+                            if key in dfGUI.index.tolist(): #if that key (measurement) is in this csv
                                 x = float(dfGUI.loc[key,'Length (m)']) #extract the measurement value using location
                             else: #if this key is not in the csv
                                 x = np.nan
-                            mDict[key] = x#add the value to the respective key
+                            mDict[key] = x #add the value to the respective key
                         elif "%" in key and key.split("-")[0] in dfGUI.index: #if the key is a width
                             row = key.split("-")[0] #split the name of the measurement
                             col = key.split("-")[1] #to get the row and column indices
@@ -610,79 +668,70 @@ class App(QWidget):
                         elif key not in dfGUI.index and key not in names:
                             mDict[key] = np.nan
 
-
                     df_op = pd.DataFrame(data = mDict,index=[1]) #make dictionary into dataframe
-                    #df_all = pd.merge(df_all,df_op,on=['Image'])
-                    df_all = pd.concat([df_all,df_op],sort = True)
-                print(df_all)
-                df_all = df_all.replace(np.nan,0)
-                df_all = df_all.groupby(['Animal_ID','Image']).sum().reset_index()
-                print(df_all)
+                    df_all = pd.concat([df_all,df_op],sort = True) #concatenate the df from the one csv to the master csv
+
+                df_allx = df_all.replace(np.nan,0) #replace all nans with 0s
+                df_all_cols = df_allx.columns.tolist() #make list of column names
+                gby = ['Animal_ID','Image']
+                togroup = [x for x in df_all_cols if x not in gby] #setting up list of columns to be grouped
+                #no we group by ID and image just incase multiple images were measured for the same animal
+                #this would combine those measurements
+                df_all = df_allx.groupby(['Animal_ID','Image'])[togroup].apply(lambda x: x.astype(float).sum()).reset_index()
+
                 #calculate body volume
                 df_all.columns = df_all.columns.str.replace(".00%", ".0%")
-                #10% and 5%
-                #10% first
                 if volchoice == 'yes':
-                    body_name = "Body_Vol_{0}%".format(interval)
-                    volm = []
-                    for x in range(lower,(upper + interval), interval):
+                    body_name = "Body_Vol_{0}%".format(interval) #name of body volume column will use interval amount
+                    volm = [] #make empty list of widths
+                    for x in range(lower,(upper + interval), interval): #loop through range of widths
                         wname = ww.split("-")[0]
-                        xx = "{0}-{1}.0%".format(wname,str(x))
+                        xx = "{0}-{1}.0%".format(tl_name,str(x))
                         volm += [xx]
-                    print(volm)
+
                     vlist = []
                     for i in volm:
-                        #print(i)
                         for ii in df_all.columns:
-                            #print(ii)
                             if i in ii:
                                 vlist += [ii]
-                    #print(vlist)
+
                     ids = []
                     vs = []
                     imgs = []
                     for i,j in enumerate(vlist[:-1]):
                         jj = vlist[i+1]
-                        #print(df_all[j])
-                        for rr, RR, hh,anid,img in zip(df_all[j],df_all[jj], df_all['Total_Length'],df_all['Animal_ID'],df_all['Image']):
+                        #calculate volume
+                        for rr, RR, hh,anid,img in zip(df_all[j],df_all[jj], df_all[tl_name],df_all['Animal_ID'],df_all['Image']):
                             ph = float(interval)/float(100)
                             h = float(hh)*ph
-                            #print(r)
                             r = float(rr)/float(2)
                             R = float(RR)/float(2)
                             v1 = (float(1)/float(3))*(math.pi)*h*((r**2)+(r*R)+(R**2))
-                            #print(v1)
                             ids += [anid]
                             vs += [v1]
                             imgs += [img]
 
-                    d = {'Animal_ID':ids, body_name:vs, 'Image':imgs}
+                    d = {'Animal_ID':ids, body_name:vs, 'Image':imgs} #make dataframe of id and body volume
                     df = pd.DataFrame(data = d)
-                    #print(df)
-                    df1 = df.groupby(['Animal_ID','Image']).sum().reset_index()
+
+                    cls = df.columns.tolist()
+                    grBy = ['Animal_ID','Image']
+                    groups = [x for x in cls if x not in grBy]
+                    df1 = df.groupby(['Animal_ID','Image'])[groups].apply(lambda x: x.astype(float).sum()).reset_index()
 
                     df_all1 = pd.merge(df_all,df1,on = ['Animal_ID','Image'])
                 elif volchoice == 'no':
                     df_all1 = df_all
-                print(df_all1)
                 #sort cols
                 cols = list(df_all1)
                 a = "AaIiTtEeJjRrBbFfWwCcDdGgHhKkLlMmNnOoPpQqSsUuVvXxYyZz" #make your own ordered alphabet
                 col = sorted(cols, key=lambda word:[a.index(c) for c in word[0]]) #sort headers based on this alphabet
                 df_all1 = df_all1.ix[:,col] #sort columns based on sorted list of column header
+                print(df_all1)
 
                 outcsv = os.path.join(saveFold,"{0}_allIDs.csv".format(outname))
                 df_all1.to_csv(outcsv,sep = ',')
 
-                if idchoice == 'yes':
-                    df_ids = pd.read_csv(idsCSV,sep = ',')
-                    idList = df_ids['Animal_ID'].tolist()
-                    df_allx = df_all1[df_all1['Animal_ID'].isin(idList)]
-
-                    outidcsv = os.path.join(saveFold,"{0}_IDS.csv".format(outname))
-                    df_allx.to_csv(outidcsv,sep = ',')
-                elif idchoice == 'no':
-                    pass
 
                 print("done, close GUI window to end script")
             elif option == 'One Folder':
@@ -700,108 +749,92 @@ class App(QWidget):
                     return False
 
                 for f in (f for f in files if f.endswith('.csv')):
-                    ff = os.path.join(GUIfold,f)
-                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X')
-                    #display(temp)
-                    df0=temp.X0.str.split(',',expand=True)
-                    df0 = df0.fillna('')
-                    #display(df0)
-                    idx = df0.loc[df0[0] == 'Object'].index
-                    #print(idx)
-                    df = df0.iloc[idx[0]:].reset_index(drop=True)#pd.read_csv(ff, sep = ',', header = idx[0],index_col=False)
-                    head = df.iloc[0]
+                    ff = os.path.join(GUIfold,f) #join csv name to folder file path
+                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X') #read in csv as one column
+                    df0=temp.X0.str.split(',',expand=True) #split rows into columns by delimeter
+                    df0 = df0.fillna('') #replace nans by blank space
+                    idx = df0.loc[df0[0] == 'Object'].index #find index (row) values of 'Object'
+                    df = df0.iloc[idx[0]:].reset_index(drop=True)  #take subset of df starting at first row containing Object
+                    head = df.iloc[0] #make list out of names in first row
                     df = df[1:] #take the data less the header row
                     df.columns = head #set the header row as the df header
                     #display(df)
 
-                    wlist = df.iloc[0]
+                    wlist = df.iloc[0] #make list of all the width types
                     widths = []
-                    for ww in wlist:
+                    for ww in wlist: #loop through widths row to make sure only widths are in list
                         if "Width" in str(ww):
                             widths += [str(ww)]
-                    #print(widths)
 
-
-
-                    l = df['Object'].tolist()
-                    #print(l)
+                    l = df['Object'].tolist() #make list of Object columns aka. names of measurements made
                     l = [x for x in l if pd.isna(x) == False] #eliminate all empty cells
-                    l = [x for x in l if x not in constants and x != 'Object']
-                    l = [x for x in l if x]
-                    #print(l)
+                    l = [x for x in l if x not in constants and x != 'Object'] #elimate all other instances of Object
+                    l = [x for x in l if x] #make sure no blank elements in list
+
                     measurements = measurements + l #add the measurement names to the master list
                     nonPercMeas = nonPercMeas + l #copy of the master list that does not include widths
 
 
-                    new_header = df.columns[0:2].values.tolist() + df.iloc[0,2:].values.tolist()
-                    df = df[1:]
-                    df.columns = new_header
+                    new_header = df.columns[0:2].values.tolist() + df.iloc[0,2:].values.tolist() #merge header with width names
+                    df = df[1:] #cut header row off
+                    df.columns = new_header #make the updated list the new header
 
-                    df = df.set_index('Object')
-                    #display(df)
+                    df = df.set_index('Object') #set Object column as the index
+
                     if anydup(l) == True: #check for any duplicate measurement names, if exists, exit code, print error msg
                         print("please check file {0} for duplicate Objects and remove duplicates".format(f))
                         sys.exit("remove duplicate and run script again")
                     elif anydup(l) == False:
                         print(f)
                         for i in l: #loop through list of measurement types
-                            print(i)
                             for w in (w for w in widths if w[0].isdigit()): #loop through the widths
-                                #print(w)
                                 x = df.loc[i,w] #extract cell value of width of measurement type
-                                #print(x)
                                 if pd.isna(x) == False: #if the cell isn't empty
                                     ww = i + "-" + w #combine the names
                                     measurements += [ww] #add this combined name to the master list
 
-                    #now we're going to set up a dictionary to fill in with all the measurements
-                    #that we will eventually turn into a dataframe where the keys are the columns
-                rawM = measurements
-                measurements += ['Image','Animal_ID']
-                names = ['Image','Animal_ID']
-                mDict = dict.fromkeys(measurements)
-                keys = list(mDict.keys())
+                #now we're going to set up a dictionary to fill in with all the measurements
+                #that we will eventually turn into a dataframe where the keys are the columns
+                rawM = measurements #making a copy of the measurement list
+                measurements += ['Image','Animal_ID'] #add key elements to measurement list (all for dict)
+                names = ['Image','Animal_ID'] #make list of the non measurement elements that will go in final table
+                mDict = dict.fromkeys(measurements) #make empty dictionary with measurement names as keys
+                keys = list(mDict.keys()) #make list of keys from the dictionary we just made
 
-                df_all = pd.DataFrame(columns = keys)
+                df_all = pd.DataFrame(columns = keys) #make empty dataframe with each key as a column hedaer
 
-                rawMM = set(rawM)
+                rawMM = set(rawM) #make set out of rawM measurement list
 
-                for f in (f for f in files if f.endswith('.csv')):
+                for f in (f for f in files if f.endswith('.csv')): #loop through the csvs again
                     print(f)
                     fil = os.path.join(GUIfold,f)
                     #pull the initial values i.e image, ID, alt, focal length
-                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X')
-                    df0=temp.X0.str.split(',',expand=True)
-                    idx = df0.loc[df0[0]=='Object'].index
-                    df = pd.read_csv(fil,sep = ',', header = None, nrows = idx[0])
+                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X') #import as one column
+                    df0=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    idx = df0.loc[df0[0]=='Object'].index #set object column to index
+                    df = pd.read_csv(fil,sep = ',', header = None, nrows = idx[0]) #subset df to be only top info section
 
-                    image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1]
+                    image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1] #pull image name
                     print(image)
-                    mDict['Image'] = image
-                    #print(df)
-                    aID = df[df[0] == 'Image ID'].loc[:,[1]].values[0]
-                    mDict['Animal_ID'] = aID[0]
-                    #go into the cvs to look for the values
-                    dfGUI = df0.iloc[idx[0]:]#pd.read_csv(ff, sep = ',', header = idx[0],index_col=False)
+                    mDict['Image'] = image #add image name to dictionary
+                    aID = df[df[0] == 'Image ID'].loc[:,[1]].values[0] #pull animal id
+                    mDict['Animal_ID'] = aID[0] #fill dictionary
+
+                    #go into the cvs to look for the measurement values
+                    dfGUI = df0.iloc[idx[0]:] #now subset the df so we're just looking at the measurements
                     head = dfGUI.iloc[0]
                     dfGUI = dfGUI[2:] #take the data less the header row
                     dfGUI.columns = new_header
                     dfGUI = dfGUI.set_index('Object')
-                    #display(dfGUI)
-
 
                     for key in keys: #loop through the keys aka future column headers
-                        #print(key)
                         if key in nonPercMeas: #if that key is in the list of measurement types (not widths)
                             if key in dfGUI.index.tolist(): #if that key (measurement) is in this csv
-                                print(key)
                                 x = float(dfGUI.loc[key,'Length (m)']) #extract the measurement value using location
-                                print(x)
                             else: #if this key is not in the csv
                                 x = np.nan
                             mDict[key] = x #add the value to the respective key
                         elif "%" in key and key.split("-")[0] in dfGUI.index: #if the key is a width
-                            #print(key)
                             row = key.split("-")[0] #split the name of the measurement
                             col = key.split("-")[1] #to get the row and column indices
                             y = dfGUI.loc[row,col] #to extract the measurement value
@@ -810,62 +843,59 @@ class App(QWidget):
                             mDict[key] = np.nan
 
                     df_op = pd.DataFrame(data = mDict,index=[1]) #make dictionary into dataframe
-                    df_all = pd.concat([df_all,df_op],sort = True)
-                    display(df_all)
-                df_all = df_all.replace(np.nan,0)
-                display(df_all)
-                #df_all = df_all.groupby(['Animal_ID','Image']).mean().reset_index()
-                display(df_all)
+                    df_all = pd.concat([df_all,df_op],sort = True) #concatenate the df from the one csv to the master csv
+
+                df_allx = df_all.replace(np.nan,0) #replace all nans with 0s
+                df_all_cols = df_allx.columns.tolist() #make list of column names
+                gby = ['Animal_ID','Image']
+                togroup = [x for x in df_all_cols if x not in gby] #setting up list of columns to be grouped
+                #no we group by ID and image just incase multiple images were measured for the same animal
+                #this would combine those measurements
+                df_all = df_allx.groupby(['Animal_ID','Image'])[togroup].apply(lambda x: x.astype(float).sum()).reset_index()
+
                 #calculate body volume
                 df_all.columns = df_all.columns.str.replace(".00%", ".0%")
-                #10% and 5%
-                #10% first
-
                 if volchoice == 'yes':
-                    body_name = "Body_Vol_{0}%".format(interval)
-                    volm = []
-                    for x in range(lower,(upper + interval), interval):
+                    body_name = "Body_Vol_{0}%".format(interval) #name of body volume column will use interval amount
+                    volm = [] #make empty list of widths
+                    for x in range(lower,(upper + interval), interval): #loop through range of widths
                         wname = ww.split("-")[0]
-                        xx = "{0}-{1}.0%".format(wname,str(x))
+                        xx = "{0}-{1}.0%".format(tl_name,str(x))
                         volm += [xx]
 
                     vlist = []
                     for i in volm:
-                        #print(i)
                         for ii in df_all.columns:
-                            #print(ii)
                             if i in ii:
                                 vlist += [ii]
-                                #print(vlist)
+
                     ids = []
                     vs = []
                     imgs = []
                     for i,j in enumerate(vlist[:-1]):
                         jj = vlist[i+1]
-                        #print(df_all[j])
-                        for rr, RR, hh,anid,img in zip(df_all[j],df_all[jj], df_all[wname],df_all['Animal_ID'],df_all['Image']):
+                        #calculate volume
+                        for rr, RR, hh,anid,img in zip(df_all[j],df_all[jj], df_all[tl_name],df_all['Animal_ID'],df_all['Image']):
                             ph = float(interval)/float(100)
                             h = float(hh)*ph
-                            #print(r)
                             r = float(rr)/float(2)
-                            print(rr,r)
                             R = float(RR)/float(2)
-                            print(RR,R)
                             v1 = (float(1)/float(3))*(math.pi)*h*((r**2)+(r*R)+(R**2))
-                            #print(v1)
                             ids += [anid]
                             vs += [v1]
                             imgs += [img]
 
-                    d = {'Animal_ID':ids, body_name:vs, 'Image':imgs}
+                    d = {'Animal_ID':ids, body_name:vs, 'Image':imgs} #make dataframe of id and body volume
                     df = pd.DataFrame(data = d)
-                    print(df)
-                    df1 = df.groupby(['Animal_ID','Image']).sum().reset_index()
+
+                    cls = df.columns.tolist()
+                    grBy = ['Animal_ID','Image']
+                    groups = [x for x in cls if x not in grBy]
+                    df1 = df.groupby(['Animal_ID','Image'])[groups].apply(lambda x: x.astype(float).sum()).reset_index()
 
                     df_all1 = pd.merge(df_all,df1,on = ['Animal_ID','Image'])
                 elif volchoice == 'no':
                     df_all1 = df_all
-                print(df_all1)
                 #sort cols
                 cols = list(df_all1)
                 a = "AaIiTtEeJjRrBbFfWwCcDdGgHhKkLlMmNnOoPpQqSsUuVvXxYyZz" #make your own ordered alphabet
