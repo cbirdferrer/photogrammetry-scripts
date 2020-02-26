@@ -215,6 +215,7 @@ class App(QWidget):
                     df_L = dfList.groupby('Image').first().reset_index()
                     alt_act = float(df_L[df_L.Image == image].loc[:,'Altitude'].values[0])
                     foc_act = float(df_L[df_L.Image == image].loc[:,'Focal_Length'].values[0])
+                    pixd_act = float(df_L[df_L.Image == image].loc[:,'Pixel_Dimension'].values[0])
 
                     #go into the cvs to look for the measurement values
                     dfGUI = df0.iloc[idx[0]:] #now subset the df so we're just looking at the measurements
@@ -231,7 +232,7 @@ class App(QWidget):
                                 # now is the time to do the back calculations
                                 pixc = (x/pixd)*(focl/alt) #back calculate the pixel count
                                 #print(pixc)
-                                xx = ((alt_act/foc_act)*pixd)*pixc #recalculate using the accurate focal length and altitude
+                                xx = ((alt_act/foc_act)*pixd_act)*pixc #recalculate using the accurate focal length and altitude
                                 #print(xx)
                             else: #if this key is not in the csv
                                 xx = np.nan
@@ -242,7 +243,7 @@ class App(QWidget):
                             y = float(dfGUI.loc[row,col]) #to extract the measurement value
                             #recalculate using accurate focal length and altitude
                             pixc = (y/pixd)*(focl/alt) #back calculate the pixel count
-                            yy = ((alt_act/foc_act)*pixd)*pixc #recalculate using the accurate focal length and altitude
+                            yy = ((alt_act/foc_act)*pixd_act)*pixc #recalculate using the accurate focal length and altitude
                             mDict[key] = yy
                         elif key not in dfGUI.index and key not in names:
                             mDict[key] = np.nan
@@ -434,9 +435,9 @@ class App(QWidget):
 
                     #get the true values of focal length and altitude to use when recalculating
                     df_L = dfList.groupby('Image').first().reset_index()
-                    # df_L = df_L.set_index('Image')
-                    alt_act = df_L[df_L.Image == image].loc[:,'Altitude'].values[0]
+                    alt_act = float(df_L[df_L.Image == image].loc[:,'Altitude'].values[0])
                     foc_act = float(df_L[df_L.Image == image].loc[:,'Focal_Length'].values[0])
+                    pixd_act = float(df_L[df_L.Image == image].loc[:,'Pixel_Dimension'].values[0])
 
                     #go into the cvs to look for the values
 
@@ -453,7 +454,7 @@ class App(QWidget):
                                 x = float(dfGUI.loc[key,'Length (m)']) #extract the measurement value using location
                                 # now is the time to do the back calculations
                                 pixc = (x/pixd)*(focl/alt) #back calculate the pixel count
-                                xx = ((alt_act/foc_act)*pixd)*pixc #recalculate using the accurate focal length and altitude
+                                xx = ((alt_act/foc_act)*pixd_act)*pixc #recalculate using the accurate focal length and altitude
                                 #just the thing for the time we had to divide by 2 for a few images
                             else: #if this key is not in the csv
                                 xx = np.nan
@@ -464,7 +465,7 @@ class App(QWidget):
                             y = float(dfGUI.loc[row,col]) #to extract the measurement value
                             #recalculate using accurate focal length and altitude
                             pixc = (y/pixd)*(focl/alt) #back calculate the pixel count
-                            yy = ((alt_act/foc_act)*pixd)*pixc #recalculate using the accurate focal length and altitude
+                            yy = ((alt_act/foc_act)*pixd_act)*pixc #recalculate using the accurate focal length and altitude
                             mDict[key] = yy
                         elif key not in dfGUI.index and key not in names:
                             mDict[key] = np.nan
