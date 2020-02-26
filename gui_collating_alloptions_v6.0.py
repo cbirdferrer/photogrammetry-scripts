@@ -129,7 +129,7 @@ class App(QWidget):
 
                 #here we loop through all csvs to extract all the possible measurement names
                 for f in csvs:
-                    temp=pd.read_csv(f,sep='^',header=None,prefix='X') #read in csv as one column
+                    temp=pd.read_csv(f,sep='^',header=None,prefix='X',engine = 'python') #read in csv as one column
                     df0=temp.X0.str.split(',',expand=True) #split rows into columns by delimeter
                     df0 = df0.fillna('') #replace nans by blank space
                     idx = df0.loc[df0[0] == 'Object'].index #find index (row) values of 'Object'
@@ -159,6 +159,7 @@ class App(QWidget):
                     df.columns = new_header #make the updated list the new header
 
                     df = df.set_index('Object') #set Object column as the index
+                    df = df.replace(r'^\s*$', np.nan, regex=True)
 
                     if anydup(l) == True: #check for any duplicate measurement names, if exists, exit code, print error msg
                         print("please check file {0} for duplicate Objects and remove duplicates".format(f))
@@ -187,26 +188,27 @@ class App(QWidget):
                 for f in csvs:
                     print(f)
                     #pull the initial values i.e image, ID, alt, focal length
-                    temp=pd.read_csv(f,sep='^',header=None,prefix='X') #import as one column
-                    df0=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    temp=pd.read_csv(f,sep='^',header=None,prefix='X',engine = 'python') #import as one column
+                    df1=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    df0 = df1.fillna('') #replace nans by blank space
                     idx = df0.loc[df0[0]=='Object'].index #set object column to index
-                    df = pd.read_csv(f,sep = ',', header = None, nrows = idx[0]) #subset df to be only top info section
+                    df = df0.iloc[:idx[0]].reset_index(drop=True) #subset df to be only top info section
 
-                    aID = os.path.split(os.path.split(f)[0])[1]
+                    aID = os.path.split(os.path.split(f)[0])[1] #extract animal ID
                     mDict['Animal_ID'] = aID
                     #df = df.set_index([0])
-                    image = os.path.split(df[df[0] == 'Image Path'].loc[:,1].values[0])[1]
+                    image = os.path.split(df[df[0] == 'Image Path'].loc[:,1].values[0])[1] #extract image
                     print(image)
                     #print(image)
                     mDict['Image'] = image
                     #print(df)
-                    alt = float((df[df[0] == 'Altitude'].loc[:,[1]].values[0])[0])
+                    alt = float((df[df[0] == 'Altitude'].loc[:,[1]].values[0])[0]) #extract entered altitude
                     mDict['Altitude'] = alt
 
-                    focl = float((df[df[0] == 'Focal Length'].loc[:,[1]].values[0])[0])
+                    focl = float((df[df[0] == 'Focal Length'].loc[:,[1]].values[0])[0]) #extract entered focal length
                     mDict['Focal Length'] = focl
 
-                    pixd = float((df[df[0] == 'Pixel Dimension'].loc[:,[1]].values[0])[0])
+                    pixd = float((df[df[0] == 'Pixel Dimension'].loc[:,[1]].values[0])[0]) #extract entered pixel dimension
                     mDict['PixD'] = pixd
 
                     #get the true values of focal length and altitude to use when recalculating
@@ -347,7 +349,7 @@ class App(QWidget):
 
                 for f in (f for f in files if f.endswith('.csv')):
                     ff = os.path.join(GUIfold,f) #join csv name to folder file path
-                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X') #read in csv as one column
+                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X',engine = 'python') #read in csv as one column
                     df0=temp.X0.str.split(',',expand=True) #split rows into columns by delimeter
                     df0 = df0.fillna('') #replace nans by blank space
                     idx = df0.loc[df0[0] == 'Object'].index #find index (row) values of 'Object'
@@ -408,25 +410,26 @@ class App(QWidget):
                     print(f)
                     fil = os.path.join(GUIfold,f)
                     #pull the initial values i.e image, ID, alt, focal length
-                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X') #import as one column
-                    df0=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X',engine='python') #import as one column
+                    df1=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    df0 = df1.fillna('') #replace nans with blank space
                     idx = df0.loc[df0[0]=='Object'].index #set object column to index
-                    df = pd.read_csv(fil,sep = ',', header = None, nrows = idx[0]) #subset df to be only top info section
+                    df = df0.iloc[:idx[0]].reset_index(drop=True) #subset df to be only top info section
 
-                    image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1]
+                    image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1] #extract image
                     print(image)
                     mDict['Image'] = image
                     #print(df)
-                    aID = (df[df[0] == 'Image ID'].loc[:,[1]].values[0])[0]
+                    aID = (df[df[0] == 'Image ID'].loc[:,[1]].values[0])[0] #extract animal ID
                     mDict['Animal_ID'] = aID
 
-                    alt =  float((df[df[0] == 'Altitude'].loc[:,[1]].values[0])[0])
+                    alt =  float((df[df[0] == 'Altitude'].loc[:,[1]].values[0])[0]) #extract entered altitude
                     mDict['Altitude'] = alt
 
-                    focl = float((df[df[0] == 'Focal Length'].loc[:,[1]].values[0])[0])
+                    focl = float((df[df[0] == 'Focal Length'].loc[:,[1]].values[0])[0]) #extract entered focal length
                     mDict['Focal Length'] = focl
 
-                    pixd =  float((df[df[0] == 'Pixel Dimension'].loc[:,[1]].values[0])[0])
+                    pixd =  float((df[df[0] == 'Pixel Dimension'].loc[:,[1]].values[0])[0]) #extract entered pixel dimension
                     mDict['PixD'] = pixd
 
                     #get the true values of focal length and altitude to use when recalculating
@@ -442,6 +445,7 @@ class App(QWidget):
                     dfGUI = dfGUI[2:] #take the data less the header row
                     dfGUI.columns = new_header
                     dfGUI = dfGUI.set_index('Object')
+                    df = df.replace(r'^\s*$', np.nan, regex=True)
 
                     for key in keys: #loop through the keys aka future column headers
                         if key in nonPercMeas: #if that key is in the list of measurement types (not widths)
@@ -577,7 +581,7 @@ class App(QWidget):
 
                 #here we loop through all csvs to extract all the possible measurement names
                 for f in csvs:
-                    temp=pd.read_csv(f,sep='^',header=None,prefix='X') #read in csv as one column
+                    temp=pd.read_csv(f,sep='^',header=None,prefix='X',engine = 'python') #read in csv as one column
                     df0=temp.X0.str.split(',',expand=True) #split rows into columns by delimeter
                     df0 = df0.fillna('') #replace nans by blank space
                     idx = df0.loc[df0[0] == 'Object'].index #find index (row) values of 'Object'
@@ -607,6 +611,7 @@ class App(QWidget):
                     df.columns = new_header #make the updated list the new header
 
                     df = df.set_index('Object') #set Object column as the index
+                    df = df.replace(r'^\s*$', np.nan, regex=True)
 
                     if anydup(l) == True: #check for any duplicate measurement names, if exists, exit code, print error msg
                         print("please check file {0} for duplicate Objects and remove duplicates".format(f))
@@ -635,10 +640,11 @@ class App(QWidget):
                 for f in csvs: #loop through the csvs again
                     print(f)
                     #pull the initial values i.e image, ID, alt, focal length
-                    temp=pd.read_csv(f,sep='^',header=None,prefix='X') #import as one column
-                    df0=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    temp=pd.read_csv(f,sep='^',header=None,prefix='X',engine = 'python') #import as one column
+                    df1=temp.X0.str.split(',',expand=True) #split on comma delimeter
+                    df0 = df1.fillna('')
                     idx = df0.loc[df0[0]=='Object'].index #set object column to index
-                    df = pd.read_csv(f,sep = ',', header = None, nrows = idx[0]) #subset df to be only top info section
+                    df = df0.iloc[:idx[0]].reset_index(drop=True) #subset df to be only top info section
 
                     image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1] #pull image name
                     print(image)
@@ -750,7 +756,7 @@ class App(QWidget):
 
                 for f in (f for f in files if f.endswith('.csv')):
                     ff = os.path.join(GUIfold,f) #join csv name to folder file path
-                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X') #read in csv as one column
+                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X',engine = 'python') #read in csv as one column
                     df0=temp.X0.str.split(',',expand=True) #split rows into columns by delimeter
                     df0 = df0.fillna('') #replace nans by blank space
                     idx = df0.loc[df0[0] == 'Object'].index #find index (row) values of 'Object'
@@ -780,6 +786,7 @@ class App(QWidget):
                     df.columns = new_header #make the updated list the new header
 
                     df = df.set_index('Object') #set Object column as the index
+                    df = df.replace(r'^\s*$', np.nan, regex=True)
 
                     if anydup(l) == True: #check for any duplicate measurement names, if exists, exit code, print error msg
                         print("please check file {0} for duplicate Objects and remove duplicates".format(f))
@@ -809,10 +816,10 @@ class App(QWidget):
                     print(f)
                     fil = os.path.join(GUIfold,f)
                     #pull the initial values i.e image, ID, alt, focal length
-                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X') #import as one column
+                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X',engine='python') #import as one column
                     df0=temp.X0.str.split(',',expand=True) #split on comma delimeter
                     idx = df0.loc[df0[0]=='Object'].index #set object column to index
-                    df = pd.read_csv(fil,sep = ',', header = None, nrows = idx[0]) #subset df to be only top info section
+                    df = df0.iloc[:idx[0]].reset_index(drop=True) #subset df to be only top info section
 
                     image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1] #pull image name
                     print(image)
@@ -849,7 +856,7 @@ class App(QWidget):
                 df_all_cols = df_allx.columns.tolist() #make list of column names
                 gby = ['Animal_ID','Image']
                 togroup = [x for x in df_all_cols if x not in gby] #setting up list of columns to be grouped
-                #no we group by ID and image just incase multiple images were measured for the same animal
+                #now we group by ID and image just incase multiple images were measured for the same animal
                 #this would combine those measurements
                 df_all = df_allx.groupby(['Animal_ID','Image'])[togroup].apply(lambda x: x.astype(float).sum()).reset_index()
 
