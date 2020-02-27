@@ -717,14 +717,24 @@ class App(QWidget):
 
                 for f in (f for f in files if f.endswith('.csv')):
                     ff = os.path.join(GUIfold,f)
-                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X')
+                    temp=pd.read_csv(ff,sep='^',header=None,prefix='X',engine = 'python',quoting=3)
                     df0=temp.X0.str.split(',',expand=True)
+                    print(df0)
+                    df0 = df0.fillna('')
+                    print(df0)
                     idx = df0.loc[df0[0] == 'Object Name'].index
-                    df = pd.read_csv(ff, sep = ',', header = idx[0])
+                    df = df0.iloc[idx[0]:].reset_index(drop=True)  #take subset of df starting at first row containing Object
+                    head = df.iloc[0] #make list out of names in first row
+                    df = df[1:] #take the data less the header row
+                    df.columns = head #set the header row as the df header
                     #print("initial df")
-                    #print(df)
+                    print(df)
 
                     widths = df.columns.values.tolist()
+
+                    df = df.replace(r'""', np.nan, regex=True)
+                    df = df.replace(r"''",np.nan,regex=True)
+                    df = df.replace(r'^\s*$', np.nan, regex=True)
 
                     l = df['Object Name'].tolist()
                     l = [x for x in l if pd.isna(x) == False] #eliminate all empty cells
@@ -735,6 +745,7 @@ class App(QWidget):
                     nonPercMeas = nonPercMeas + l #copy of the master list that does not include widths
 
                     df = df.set_index('Object Name')
+                    df = df.replace(r'^\s*$', np.nan, regex=True)
                     #print(df)
                     if anydup(l) == True: #check for any duplicate measurement names, if exists, exit code, print error msg
                         print("please check file {0} for duplicate Object Names and remove duplicates".format(f))
@@ -747,6 +758,7 @@ class App(QWidget):
                                 if pd.isna(x) == False: #if the cell isn't empty
                                     ww = i + "_" + w #combine the names
                                     measurements += [ww] #add this combined name to the master list
+
 
                 #now we're going to set up a dictionary to fill in with all the measurements
                 #that we will eventually turn into a dataframe where the keys are the columns
@@ -764,24 +776,36 @@ class App(QWidget):
                     print(f)
                     fil = os.path.join(GUIfold,f)
                     #pull the initial values i.e image, ID, alt, focal length
-                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X')
+                    temp=pd.read_csv(fil,sep='^',header=None,prefix='X',engine = 'python',quoting=3)
                     df0=temp.X0.str.split(',',expand=True)
                     idx = df0.loc[df0[0]=='Object Name'].index
-                    df = pd.read_csv(fil,sep = ',', header = None, nrows = idx[0])
+                    df = df0.iloc[:idx[0]].reset_index(drop=True)
 
-                    image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1]
-                    isp = "_" + image.split("_")[3]
-                    daf = image.replace(isp,"")
+                    image = os.path.split((df[df[0] == 'Image Path'].loc[:,[1]].values[0])[0])[1] #pull image name
+                    #isp = "_" + image.split("_")[3]
+                    #daf = image.replace(isp,"")
                     mDict['Image'] = image
                     #print(df)
                     aID = df[df[0] == 'Image ID'].loc[:,[1]].values[0]
                     mDict['Animal_ID'] = aID[0]
                     #go into the cvs to look for the values
-                    dfGUI = pd.read_csv(fil, sep = ',', header = idx[0])
+                    dfGUI = df0.iloc[idx[0]:].reset_index(drop=True) #now subset the df so we're just looking at the measurements
+                    headG = dfGUI.iloc[0] #make list out of names in first row
+                    dfGUI = dfGUI[1:] #take the data less the header row
+                    dfGUI.columns = headG #set the header row as the df header
                     dfGUI = dfGUI.set_index('Object Name')
+                    dfGUI = dfGUI.replace(r'^\s*$', np.nan, regex=True)
+
+                    print(l)
+                    print(keys)
+
+
+
                     for key in keys: #loop through the keys aka future column headers
                         if key in nonPercMeas: #if that key is in the list of measurement types (not widths)
                             if key in dfGUI.index.tolist(): #if that key (measurement) is in this csv
+                                print(key)
+                                print(dfGUI.loc[key,'Length'])
                                 x = float(dfGUI.loc[key,'Length']) #extract the measurement value using location
                             else: #if this key is not in the csv
                                 x = np.nan
@@ -797,8 +821,13 @@ class App(QWidget):
                     df_op = pd.DataFrame(data = mDict,index=[1]) #make dictionary into dataframe
                     df_all = pd.concat([df_all,df_op],sort = True)
                 print(df_all)
-                df_all = df_all.replace(np.nan,0)
-                df_all = df_all.groupby(['Animal_ID','Image']).sum().reset_index()
+                df_allx = df_all.replace(np.nan,0)
+                df_all_cols = df_allx.columns.tolist() #make list of column names
+                gby = ['Animal_ID','Image']
+                togroup = [x for x in df_all_cols if x not in gby] #setting up list of columns to be grouped
+                #now we group by ID and image just incase multiple images were measured for the same animal
+                #this would combine those measurements
+                df_all = df_allx.groupby(['Animal_ID','Image'])[togroup].apply(lambda x: x.astype(float).sum()).reset_index()
                 print(df_all)
                 #calculate body volume
                 df_all.columns = df_all.columns.str.replace(".00%", ".0%")
@@ -851,6 +880,7 @@ class App(QWidget):
                 print(df_all1)
                 #sort cols
                 cols = list(df_all1)
+                print(cols)
                 a = "AaIiTtEeJjRrBbFfWwCcDdGgHhKkLlMmNnOoPpQqSsUuVvXxYyZz" #make your own ordered alphabet
                 col = sorted(cols, key=lambda word:[a.index(c) for c in word[0]]) #sort headers based on this alphabet
                 df_all1 = df_all1.ix[:,col] #sort columns based on sorted list of column header
