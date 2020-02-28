@@ -763,8 +763,8 @@ class App(QWidget):
                 #now we're going to set up a dictionary to fill in with all the measurements
                 #that we will eventually turn into a dataframe where the keys are the columns
                 rawM = measurements
-                measurements += ['Image','Animal_ID']
-                names = ['Image','Animal_ID']
+                measurements += ['Image','Animal_ID','Notes']
+                names = ['Image','Animal_ID','Notes']
                 mDict = dict.fromkeys(measurements)
                 keys = list(mDict.keys())
 
@@ -788,6 +788,10 @@ class App(QWidget):
                     #print(df)
                     aID = df[df[0] == 'Image ID'].loc[:,[1]].values[0]
                     mDict['Animal_ID'] = aID[0]
+
+                    notes = df[df[0] == 'Notes'].loc[:,[1]].values[0]
+                    mDict['Notes'] = notes[0]
+
                     #go into the cvs to look for the values
                     dfGUI = df0.iloc[idx[0]:].reset_index(drop=True) #now subset the df so we're just looking at the measurements
                     headG = dfGUI.iloc[0] #make list out of names in first row
@@ -823,11 +827,13 @@ class App(QWidget):
                 print(df_all)
                 df_allx = df_all.replace(np.nan,0)
                 df_all_cols = df_allx.columns.tolist() #make list of column names
-                gby = ['Animal_ID','Image']
+                gby = ['Animal_ID','Image','Notes']
                 togroup = [x for x in df_all_cols if x not in gby] #setting up list of columns to be grouped
                 #now we group by ID and image just incase multiple images were measured for the same animal
                 #this would combine those measurements
                 df_all = df_allx.groupby(['Animal_ID','Image'])[togroup].apply(lambda x: x.astype(float).sum()).reset_index()
+                df_notes = df_allx.groupby(['Animal_ID','Image'])['Notes'].first().reset_index()
+                df_all =df_all.merge(df_notes,on=['Animal_ID','Image'])
                 print(df_all)
                 #calculate body volume
                 df_all.columns = df_all.columns.str.replace(".00%", ".0%")
